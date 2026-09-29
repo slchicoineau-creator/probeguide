@@ -1,0 +1,30 @@
+F:\Ideas\AI_Solvable_Rewards\Vesuvius_Progress_Prize\work\villa\vesuvius\.venv\Lib\site-packages\scipy\stats\_wilcoxon.py:192: RuntimeWarning: invalid value encountered in scalar divide
+  z = (r_plus - mn) / se
+F:\Ideas\AI_Solvable_Rewards\Vesuvius_Progress_Prize\work\villa\vesuvius\.venv\Lib\site-packages\scipy\stats\_wilcoxon.py:192: RuntimeWarning: invalid value encountered in scalar divide
+  z = (r_plus - mn) / se
+labels dense tokens 98896 ink rate 0.378
+arm        pooledPR pooledROC | perseg PR  ROC | within PR  ROC
+inc128     0.434   0.519   | 0.460 0.531 | 0.592 0.574
+otsu128    0.471   0.543   | 0.491 0.554 | 0.592 0.574
+raw_cos    0.449   0.532   | 0.481 0.544 | 0.592 0.574
+probe_128  0.505   0.598   | 0.533 0.606 | 0.587 0.594
+probe      0.582   0.649   | 0.607 0.675 | 0.642 0.657
+probe_mm   0.581   0.649   | 0.605 0.673 | 0.642 0.657
+kindflag   0.503   0.698   | 0.516 0.703 | 0.479 0.500
+qualifying chunks per segment (>=10 each class): [5, 6, 6, 6, 6, 5, 5, 6] of [7, 7, 7, 7, 7, 7, 7, 7]
+per-seg   probe-inc128 AUPRC: mean +0.147 per-seg [0.209, 0.27, 0.037, 0.118, 0.093, 0.203, 0.247, -0.002] t p=0.004 W p=0.016 7/8 sign p=0.070
+within    probe-inc128 AUPRC: mean +0.050 per-seg [0.035, -0.02, -0.018, 0.05, 0.031, 0.179, 0.036, 0.108] t p=0.069 W p=0.039 6/8 sign p=0.289
+per-seg   probe-inc128 AUROC: mean +0.143 per-seg [0.223, 0.182, 0.048, 0.135, 0.101, 0.261, 0.183, 0.013] t p=0.002 W p=0.008 8/8 sign p=0.008
+within    probe-inc128 AUROC: mean +0.083 per-seg [0.056, -0.021, -0.01, 0.086, 0.062, 0.254, 0.134, 0.103] t p=0.030 W p=0.039 6/8 sign p=0.289
+per-seg   probe_128-inc128 AUPRC: mean +0.073 per-seg [0.088, 0.216, -0.034, 0.134, -0.031, 0.194, 0.097, -0.079] t p=0.103 W p=0.109 5/8 sign p=0.727
+within    probe_128-inc128 AUPRC: mean -0.005 per-seg [-0.067, -0.065, -0.041, 0.053, -0.049, 0.136, -0.006, -0.001] t p=0.846 W p=0.547 2/8 sign p=0.289
+per-seg   probe_128-inc128 AUROC: mean +0.075 per-seg [0.102, 0.152, 0.031, 0.138, -0.059, 0.24, 0.082, -0.085] t p=0.093 W p=0.109 6/8 sign p=0.289
+within    probe_128-inc128 AUROC: mean +0.020 per-seg [-0.063, -0.052, 0.03, 0.073, -0.056, 0.185, 0.056, -0.012] t p=0.528 W p=0.742 4/8 sign p=1.000
+per-seg   probe_mm-inc128 AUPRC: mean +0.145 per-seg [0.208, 0.268, 0.035, 0.117, 0.091, 0.199, 0.244, -0.002] t p=0.004 W p=0.016 7/8 sign p=0.070
+within    probe_mm-inc128 AUPRC: mean +0.050 per-seg [0.035, -0.02, -0.018, 0.05, 0.031, 0.179, 0.036, 0.108] t p=0.069 W p=0.039 6/8 sign p=0.289
+per-seg   probe_mm-inc128 AUROC: mean +0.142 per-seg [0.221, 0.181, 0.047, 0.135, 0.098, 0.258, 0.18, 0.016] t p=0.002 W p=0.008 8/8 sign p=0.008
+within    probe_mm-inc128 AUROC: mean +0.083 per-seg [0.056, -0.021, -0.01, 0.086, 0.062, 0.254, 0.134, 0.103] t p=0.030 W p=0.039 6/8 sign p=0.289
+per-seg   probe-probe_mm AUPRC: mean +0.002 per-seg [0.001, 0.002, 0.002, 0.001, 0.002, 0.004, 0.003, -0.001] t p=0.012 W p=0.016 7/8 sign p=0.070
+within    probe-probe_mm AUPRC: mean +0.000 per-seg [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] t p=nan W p=1.000 0/8 sign p=0.008
+per-seg   probe-probe_mm AUROC: mean +0.001 per-seg [0.002, 0.001, 0.001, -0.0, 0.002, 0.003, 0.003, -0.003] t p=0.179 W p=0.250 6/8 sign p=0.289
+within    probe-probe_mm AUROC: mean +0.000 per-seg [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] t p=nan W p=1.000 0/8 sign p=0.008

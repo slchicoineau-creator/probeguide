@@ -1,0 +1,7 @@
+assets/
+scripts/emb/
+scripts/tifcache/
+scripts/points_*.npz
+cache/
+__pycache__/
+*.pyc

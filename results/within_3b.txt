@@ -1,0 +1,25 @@
+v1_probe-inc AUPRC per-seg: mean +0.038 t p=0.080 W p=0.078 6/8
+v1_probe-inc AUPRC within : mean -0.005 t p=0.694 W p=1.000 5/8
+v1_probe-inc AUROC per-seg: mean +0.034 t p=0.131 W p=0.148 6/8
+v1_probe-inc AUROC within : mean -0.008 t p=0.699 W p=0.742 3/8
+v1_unet-inc AUPRC per-seg: mean +0.038 t p=0.003 W p=0.016 7/8
+v1_unet-inc AUPRC within : mean +0.009 t p=0.225 W p=0.250 6/8
+v1_unet-inc AUROC per-seg: mean +0.049 t p=0.002 W p=0.008 8/8
+v1_unet-inc AUROC within : mean +0.032 t p=0.001 W p=0.008 8/8
+v1_unet-probe AUPRC per-seg: mean +0.000 t p=0.980 W p=1.000 4/8
+v1_unet-probe AUPRC within : mean +0.014 t p=0.139 W p=0.195 6/8
+v1_unet-probe AUROC per-seg: mean +0.014 t p=0.388 W p=0.461 5/8
+v1_unet-probe AUROC within : mean +0.039 t p=0.046 W p=0.078 7/8
+v2_probe-inc AUPRC per-seg: mean +0.036 t p=0.077 W p=0.078 6/8
+v2_probe-inc AUPRC within : mean -0.003 t p=0.763 W p=1.000 4/8
+v2_probe-inc AUROC per-seg: mean +0.029 t p=0.146 W p=0.148 6/8
+v2_probe-inc AUROC within : mean -0.005 t p=0.763 W p=0.945 4/8
+v2_unet-inc AUPRC per-seg: mean +0.036 t p=0.003 W p=0.008 8/8
+v2_unet-inc AUPRC within : mean +0.010 t p=0.125 W p=0.148 6/8
+v2_unet-inc AUROC per-seg: mean +0.042 t p=0.002 W p=0.008 8/8
+v2_unet-inc AUROC within : mean +0.028 t p=0.002 W p=0.016 7/8
+v2_unet-probe AUPRC per-seg: mean -0.000 t p=0.995 W p=0.742 3/8
+v2_unet-probe AUPRC within : mean +0.014 t p=0.118 W p=0.109 6/8
+v2_unet-probe AUROC per-seg: mean +0.013 t p=0.385 W p=0.461 5/8
+v2_unet-probe AUROC within : mean +0.033 t p=0.055 W p=0.055 7/8
+qualifying chunks per segment: [5, 6, 6, 5, 6, 5, 5, 4]

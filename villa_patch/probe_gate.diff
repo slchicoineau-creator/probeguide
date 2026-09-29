@@ -1,0 +1,227 @@
+diff --git a/vesuvius/src/vesuvius/ink_detection/config.py b/vesuvius/src/vesuvius/ink_detection/config.py
+index b60c28b..2085b46 100644
+--- a/vesuvius/src/vesuvius/ink_detection/config.py
++++ b/vesuvius/src/vesuvius/ink_detection/config.py
+@@ -24,12 +24,15 @@ class DinoGuidedLabelConfig:
+     kind: Literal["dino_guided"]
+     unet_ckpt: Path
+     dino_ckpt: Path
+-    ref_embedding: Path
++    ref_embedding: Path | None
+     dino_stride: int
+     dino_minibatch: int
+     dino_blend_sigma: float
+     threshold: float
+     input_mask_threshold: float | None
++    # Optional: calibrated linear probe (.npz with coef, intercept) used instead of the
++    # min-max-normalised cosine to ref_embedding. None keeps the original recipe.
++    probe_weights: Path | None = None
+ 
+ 
+ @dataclass(frozen=True)
+@@ -95,12 +98,21 @@ def _dynamic_label_config(
+             )
+         if not 0.0 <= threshold <= 1.0:
+             raise ValueError("dynamic_label.threshold must be in [0,1]")
++        probe_weights = value.get("probe_weights")
++        ref_embedding = value.get("ref_embedding")
++        if probe_weights in (None, "") and ref_embedding in (None, ""):
++            raise ValueError(
++                "dynamic_label.ref_embedding is required (or dynamic_label.probe_weights)"
++            )
+         return DinoGuidedLabelConfig(
+             kind="dino_guided",
+             unet_ckpt=_required_path(value, "unet_ckpt", parent="dynamic_label"),
+             dino_ckpt=_required_path(value, "dino_ckpt", parent="dynamic_label"),
+-            ref_embedding=_required_path(
+-                value, "ref_embedding", parent="dynamic_label"
++            ref_embedding=(
++                None if ref_embedding in (None, "") else Path(str(ref_embedding))
++            ),
++            probe_weights=(
++                None if probe_weights in (None, "") else Path(str(probe_weights))
+             ),
+             dino_stride=stride,
+             dino_minibatch=minibatch,
+diff --git a/vesuvius/src/vesuvius/ink_detection/training/dynamic_labels.py b/vesuvius/src/vesuvius/ink_detection/training/dynamic_labels.py
+index f13b821..c2d5c55 100644
+--- a/vesuvius/src/vesuvius/ink_detection/training/dynamic_labels.py
++++ b/vesuvius/src/vesuvius/ink_detection/training/dynamic_labels.py
+@@ -612,18 +612,115 @@ class SelfDistillLabelGenerator:
+         return output
+ 
+ 
++def load_probe_weights(
++    source: str | Path, *, embedding_dim: int
++) -> tuple[torch.Tensor, float]:
++    """Load a linear probe (.npz with ``coef`` of shape (embedding_dim,) and ``intercept``)."""
++
++    payload = np.load(str(source))
++    coef = np.asarray(payload["coef"], dtype=np.float32)
++    if coef.shape != (embedding_dim,):
++        raise ValueError(
++            f"probe coef must have shape ({embedding_dim},), got {coef.shape}"
++        )
++    return torch.from_numpy(coef), float(payload["intercept"])
++
++
++class ProbeGuidedLabelGenerator(DinoGuidedLabelGenerator):
++    """DINO-guided labels with a linear probe instead of the prototype cosine.
++
++    Identical windows, stride, blending, upsampling, U-Net and label rule; the per-token
++    score is ``sigmoid(normalize(token) . coef + intercept)`` and there is no per-chunk
++    min-max normalisation.
++    """
++
++    def __init__(self, *, probe_coef: torch.Tensor, probe_intercept: float, **kwargs: Any) -> None:
++        grid = kwargs.get("grid") or DinoGridSpec()
++        super().__init__(reference_embedding=torch.ones(grid.embedding_dim), **kwargs)
++        self.probe_coef = torch.as_tensor(probe_coef, dtype=torch.float32).to(self.device)
++        self.probe_intercept = float(probe_intercept)
++
++    @classmethod
++    def from_mapping(
++        cls,
++        config: Any,
++        *,
++        device: torch.device | str = "cuda",
++        dtype: torch.dtype = torch.bfloat16,
++    ) -> ProbeGuidedLabelGenerator:
++        grid = DinoGridSpec()
++        coef, intercept = load_probe_weights(
++            _config_value(config, "probe_weights"), embedding_dim=grid.embedding_dim
++        )
++        return cls(
++            probe_coef=coef,
++            probe_intercept=intercept,
++            unet=load_frozen_ink_model(
++                _config_alias(config, "unet_ckpt", "unet_checkpoint"), device=device, dtype=dtype
++            ),
++            dino=load_frozen_dino_backbone(
++                _config_alias(config, "dino_ckpt", "dino_checkpoint"), device=device, dtype=dtype
++            ),
++            device=device,
++            dtype=dtype,
++            dino_stride=int(_config_value(config, "dino_stride", 64)),
++            dino_minibatch=int(_config_value(config, "dino_minibatch", 8)),
++            dino_blend_sigma=float(_config_value(config, "dino_blend_sigma", 4.0)),
++            threshold=float(_config_value(config, "threshold", 0.5)),
++            grid=grid,
++        )
++
++    def _token_scores(self, tokens: torch.Tensor) -> torch.Tensor:
++        return torch.sigmoid(F.normalize(tokens.float(), dim=-1) @ self.probe_coef + self.probe_intercept)
++
++    @torch.inference_mode()
++    def _dino_similarity(self, image_b1zyx: torch.Tensor) -> torch.Tensor:
++        batch_size = int(image_b1zyx.shape[0])
++        grid = self.grid
++        width = grid.tokens_per_window_axis
++        coordinates = [(z, y, x) for z in self.starts for y in self.starts for x in self.starts]
++        accumulator = torch.zeros(
++            (batch_size,) + (grid.tokens_per_chunk_axis,) * 3, device=self.device, dtype=torch.float32
++        )
++        weight_accumulator = torch.zeros_like(accumulator)
++        for start in range(0, len(coordinates), self.dino_minibatch):
++            batch_coords = coordinates[start:start + self.dino_minibatch]
++            windows = torch.cat([
++                image_b1zyx[:, :, z0:z0 + grid.window_size, y0:y0 + grid.window_size, x0:x0 + grid.window_size]
++                for z0, y0, x0 in batch_coords
++            ]).to(device=self.device, dtype=self.dtype)
++            tokens = self.dino.forward_features(windows)["x_norm_patchtokens"]
++            scores = self._token_scores(tokens).reshape(len(batch_coords), batch_size, width, width, width)
++            for j, (z0, y0, x0) in enumerate(batch_coords):
++                oz, oy, ox = z0 // grid.patch_size, y0 // grid.patch_size, x0 // grid.patch_size
++                slices = (slice(None), slice(oz, oz + width), slice(oy, oy + width), slice(ox, ox + width))
++                accumulator[slices] += scores[j] * self.weight
++                weight_accumulator[slices] += self.weight
++        similarity_grid = accumulator / weight_accumulator.clamp_min(1e-6)
++        return F.interpolate(
++            similarity_grid.unsqueeze(1), size=(grid.chunk_size,) * 3, mode="trilinear", align_corners=False
++        )
++
++
+ def build_dynamic_label_generator(
+     config: Any,
+     *,
+     device: torch.device | str,
+     dtype: torch.dtype,
+ ) -> DinoGuidedLabelGenerator | SelfDistillLabelGenerator:
+-    """Build either opt-in engine from a mapping or typed config object."""
++    """Build an opt-in engine from a mapping or typed config object."""
+ 
+     kind = _config_value(config, "kind")
+     kind = getattr(kind, "value", kind)
+     normalized = str(kind).strip().lower()
+     if normalized == "dino_guided":
++        probe = _config_value(config, "probe_weights", None)
++        if probe not in (None, ""):
++            return ProbeGuidedLabelGenerator.from_mapping(
++                config,
++                device=device,
++                dtype=dtype,
++            )
+         return DinoGuidedLabelGenerator.from_mapping(
+             config,
+             device=device,
+diff --git a/vesuvius/src/vesuvius/ink_detection/training/train.py b/vesuvius/src/vesuvius/ink_detection/training/train.py
+index 4802481..8215a74 100644
+--- a/vesuvius/src/vesuvius/ink_detection/training/train.py
++++ b/vesuvius/src/vesuvius/ink_detection/training/train.py
+@@ -74,6 +74,7 @@ def stage_training_request(
+             "unet_ckpt",
+             "dino_ckpt",
+             "ref_embedding",
++            "probe_weights",
+             "primary_ckpt",
+             "ensemble_ckpt",
+         ):
+diff --git a/vesuvius/tests/ink_detection/test_dynamic_labels.py b/vesuvius/tests/ink_detection/test_dynamic_labels.py
+index ff6d1fe..034248e 100644
+--- a/vesuvius/tests/ink_detection/test_dynamic_labels.py
++++ b/vesuvius/tests/ink_detection/test_dynamic_labels.py
+@@ -399,3 +399,44 @@ def test_real_dinovol_teacher_strict_loads_when_configured():
+ 
+     assert sum(parameter.numel() for parameter in model.parameters()) > 0
+     assert all(not parameter.requires_grad for parameter in model.parameters())
++
++
++def test_probe_guided_generator_uses_probe_without_minmax(tmp_path):
++    """probe_weights switches the DINO-guided recipe to a linear-probe score (no per-chunk min-max)."""
++    import numpy as np
++    import torch
++    from torch import nn
++    from vesuvius.ink_detection.training.dynamic_labels import (
++        DinoGridSpec,
++        ProbeGuidedLabelGenerator,
++    )
++
++    class _Dino(nn.Module):
++        def __init__(self):
++            super().__init__()
++            self.p = nn.Parameter(torch.zeros(1))
++
++        def forward_features(self, x):
++            tok = torch.zeros(x.shape[0], 16 ** 3, 864, dtype=x.dtype, device=x.device)
++            tok[..., 0] = 1.0
++            return {"x_norm_patchtokens": tok}
++
++    class _UNet(nn.Module):
++        def __init__(self):
++            super().__init__()
++            self.p = nn.Parameter(torch.zeros(1))
++
++        def forward(self, x):
++            return {"ink": torch.full_like(x, 10.0)}
++
++    coef = np.zeros(864, np.float32)
++    coef[0] = 2.0
++    gen = ProbeGuidedLabelGenerator(
++        probe_coef=torch.from_numpy(coef), probe_intercept=-1.0, unet=_UNet(), dino=_Dino(),
++        device="cpu", dtype=torch.float32, dino_stride=128, grid=DinoGridSpec(),
++    )
++    image = torch.rand(1, 1, 256, 256, 256)
++    similarity = gen._dino_similarity(image)
++    expected = float(torch.sigmoid(torch.tensor(1.0)))
++    assert torch.allclose(similarity, torch.full_like(similarity, expected), atol=1e-4)
++    assert gen.generate(image).mean().item() == 1.0

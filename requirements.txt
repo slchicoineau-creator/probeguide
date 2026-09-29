@@ -1,0 +1,13 @@
+# plus a checkout of https://github.com/ScrollPrize/villa (vesuvius package on PYTHONPATH)
+torch>=2.12        # CUDA build, e.g. --index-url https://download.pytorch.org/whl/cu130
+numpy
+scipy
+scikit-learn
+zarr>=3
+fsspec
+aiohttp
+numcodecs
+tifffile
+safetensors        # weakteacher.py (§3c)
+matplotlib
+pytest

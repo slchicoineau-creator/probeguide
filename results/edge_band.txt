@@ -1,0 +1,5 @@
+probe done 16s
+edge-band robustness: per-segment AUPRC, pixels farther than B px from the opposite label class
+B=0: kept 1.000 | T 0.798 TxS_proto 0.690 TxS_probe 0.774 | TxS_proto-T -0.107 1/8 p=0.016 | TxS_probe-T -0.024 3/8 p=0.383
+B=3: kept 0.934 | T 0.822 TxS_proto 0.706 TxS_probe 0.797 | TxS_proto-T -0.116 1/8 p=0.016 | TxS_probe-T -0.025 3/8 p=0.383
+B=6: kept 0.868 | T 0.840 TxS_proto 0.718 TxS_probe 0.815 | TxS_proto-T -0.123 1/8 p=0.016 | TxS_probe-T -0.025 3/8 p=0.383
